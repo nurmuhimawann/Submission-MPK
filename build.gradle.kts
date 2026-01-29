@@ -1,10 +1,21 @@
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import org.jmailen.gradle.kotlinter.tasks.LintTask
+
+open class ExecOperationsTask @Inject constructor(@Internal val execOperations: ExecOperations) : DefaultTask()
+
 plugins {
-    kotlin("jvm") version "1.7.0"
-    java
+    // Note. Harus pake ini supaya bisa running
+    // ✅ Gradle 8.11.1
+    // ✅ Kotlin 2.0.20
+    // ✅ JVM 21.0.9
+    kotlin("jvm") version "2.0.20"
+    application
+    id("org.jmailen.kotlinter") version "3.16.0"
 }
 
 group = "org.example"
-version = "1.0-SNAPSHOT"
+version = "2.1.4"
 
 repositories {
     mavenCentral()
@@ -26,8 +37,49 @@ dependencies {
 }
 
 tasks.getByName<Test>("test") {
-    useJUnitPlatform()
-    finalizedBy("testReportExam")
+    runBlocking {
+        useJUnitPlatform()
+        delay(1000)
+        finalizedBy("testReportExam")
+    }
 }
 
 tasks.register<TestReportExam>("testReportExam")
+
+tasks.register<LintTask>("lint") {
+    group = "verification"
+    source(files("src/main"))
+    reports.set(
+        mapOf(
+            "plain" to file("build/lint-result/lint-report.txt"),
+            "json" to file("build/lint-result/lint-report.json")
+        )
+    )
+}
+
+tasks.register<ExecOperationsTask>("runMainCriteriaTest") {
+    doFirst {
+        execOperations.exec {
+            commandLine("./gradlew", "test")
+            args("--tests", "ExamTestMain", "-q")
+        }
+    }
+}
+
+tasks.register<ExecOperationsTask>("runOptionalCriteriaTest") {
+    doFirst {
+        execOperations.exec {
+            commandLine("./gradlew", "test")
+            args("--tests", "ExamTestOptional", "-q")
+        }
+    }
+}
+
+tasks.register<ExecOperationsTask>("runAllTest") {
+    doFirst {
+        execOperations.exec() {
+            commandLine("./gradlew", "test")
+            args("--continue", "-q")
+        }
+    }
+}
